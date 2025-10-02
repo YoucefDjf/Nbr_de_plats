@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>نظام إدارة الوجبات والمصاريف</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root{--bg:#f7fbff;--surface:#fff;--text:#0f172a;--muted:#6b7280;--primary:#0ea5e9;--primary-hover:#0284c7;--success:#22c55e;--danger:#ef4444;--row-even:#f1f5f9;--card-shadow:0 2px 8px rgba(16,24,40,.05);}
+    *{box-sizing:border-box}html,body{margin:0;font-family:"Cairo",sans-serif;background:var(--bg);color:var(--text)}
+    .container{max-width:1100px;margin:28px auto;padding:18px}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--surface);padding:14px 18px;border-radius:12px;box-shadow:var(--card-shadow)}
+    header h1{margin:0;font-size:1.3rem;color:var(--primary);font-weight:700}
+    .top-actions{display:flex;gap:8px;align-items:center}
+    .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;border:0;cursor:pointer;font-weight:600;font-size:.9rem;transition:.2s}
+    .btn.primary{background:var(--primary);color:#fff}.btn.primary:hover{background:var(--primary-hover)}
+    .btn.success{background:var(--success);color:#fff}.btn.danger{background:var(--danger);color:#fff}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+    .auth-card{max-width:420px;margin:80px auto;padding:24px;background:var(--surface);border-radius:12px;box-shadow:var(--card-shadow);text-align:center}
+    .auth-card h2{margin:0 0 16px;color:var(--primary)}
+    .field{margin-bottom:12px}input,select{width:100%;padding:10px;border-radius:8px;border:1px solid #cbd5e1;background:var(--surface);color:var(--text)}
+    .tabs{display:flex;gap:8px;margin-top:18px}.tab-btn{flex:1;padding:10px;border-radius:8px;background:var(--surface);border:1px solid #e2e8f0;cursor:pointer;font-weight:600;text-align:center;transition:.2s}.tab-btn.active{border-color:var(--primary);color:var(--primary)}
+    .card{background:var(--surface);padding:16px;border-radius:12px;margin-top:12px;box-shadow:var(--card-shadow)}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:12px}
+    .table-wrap{overflow:auto;max-height:400px;border-radius:8px;border:1px solid #e2e8f0}table{width:100%;border-collapse:collapse;font-size:.95rem}th,td{padding:10px;text-align:center;border-bottom:1px solid #e2e8f0}th{background:var(--primary);color:#fff;position:sticky;top:0}tr:nth-child(even) td{background:var(--row-even)}tr:hover td{background:rgba(14,165,233,.04)}
+    .summary{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}.summary .s-card{flex:1;min-width:180px;padding:12px;border-radius:8px;background:linear-gradient(90deg,rgba(14,165,233,.03),transparent);font-weight:700;text-align:center}
+    .loading{display:inline-flex;align-items:center;gap:8px;color:var(--primary);font-weight:600}.spinner{width:16px;height:16px;border:3px solid rgba(0,0,0,.08);border-top-color:var(--primary);border-radius:50%;animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+    .hidden{display:none}@media(max-width:780px){header{flex-direction:column;align-items:stretch;gap:10px}.tabs{flex-direction:column}}
+    @media print{body *{visibility:hidden}#printArea,#printArea *{visibility:visible}#printArea{position:absolute;top:0;right:0;left:0;font-family:Cairo,sans-serif;font-size:14px}#printArea table{width:100%;border-collapse:collapse;margin-top:8px}#printArea th,#printArea td{border:1px solid #000;padding:6px;text-align:center}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1><i class="fa-solid fa-utensils"></i> نظام إدارة الوجبات والمصاريف</h1>
+      <div class="top-actions">
+        <button id="refresh-btn" class="btn primary"><i class="fa-solid fa-sync"></i> تحديث</button>
+        <button id="logout-btn" class="btn danger hidden"><i class="fa-solid fa-right-from-bracket"></i> خروج</button>
+      </div>
+    </header>
+
+    <!-- صفحة الدخول -->
+    <div id="auth" class="auth-card">
+      <h2>تسجيل الدخول</h2>
+      <div class="field"><input id="username" type="text" placeholder="اسم المستخدم"></div>
+      <div class="field"><input id="password" type="password" placeholder="كلمة المرور"></div>
+      <button id="login-btn" class="btn primary"><i class="fa-solid fa-right-to-bracket"></i> دخول</button>
+      <p id="login-msg" style="margin-top:10px;font-size:.9rem;min-height:20px;"></p>
+    </div>
+
+    <!-- التطبيق -->
+    <div id="app" class="hidden">
+      <div class="tabs">
+        <button class="tab-btn" data-tab="meals-tab"   id="tab-meals"><i class="fa-solid fa-plate-wheat"></i> الوجبات</button>
+        <button class="tab-btn" data-tab="expenses-tab"id="tab-expenses"><i class="fa-solid fa-money-bill-wave"></i> المصاريف</button>
+        <button class="tab-btn active" data-tab="results-tab"><i class="fa-solid fa-chart-pie"></i> النتائج</button>
+        <button class="tab-btn" data-tab="admin-tab"   id="tab-admin"><i class="fa-solid fa-screwdriver-wrench"></i> تقرير إدمن</button>
+      </div>
+
+      <!-- Results -->
+      <section id="results-tab" class="card">
+        <h3>النتائج</h3>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <label>شهر:</label><input id="filter-month" type="month"/>
+          <label>شركة:</label><input id="filter-company" type="text"/>
+          <button id="print-btn" class="btn primary"><i class="fa-solid fa-print"></i> طباعة</button>
+          <div id="results-loading" class="loading hidden"><div class="spinner"></div> جاري...</div>
+        </div>
+        <div class="summary">
+          <div class="s-card" id="card-count">🍽 مجموع: 0</div>
+          <div class="s-card" id="card-amount">💰 المبلغ: 0 دج</div>
+        </div>
+        <div class="table-wrap"><table id="results-table"></table></div>
+      </section>
+
+      <!-- Admin -->
+      <section id="admin-tab" class="card hidden">
+        <h3>📑 تقرير الصافي</h3>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <label>شهر:</label><input id="admin-filter-month" type="month"/>
+          <button id="admin-print-btn" class="btn primary"><i class="fa-solid fa-print"></i> طباعة</button>
+        </div>
+        <div class="summary">
+          <div class="s-card" id="admin-card-expenses">💰 المصاريف: 0 دج</div>
+          <div class="s-card" id="admin-card-meals">🍽 الوجبات: 0</div>
+          <div class="s-card" id="admin-card-net">📉 الصافي: 0 دج</div>
+        </div>
+        <div class="table-wrap"><table id="admin-table"></table></div>
+      </section>
+    </div>
+  </div>
+
+  <!-- منطقة الطباعة المخفية -->
+  <div id="printArea" class="hidden"></div>
+
+<script>
+/* ========================== إعدادات أساسية ========================== */
+const API_URL = "https://script.google.com/macros/s/AKfycbwBOR6hxjOv-zEc1CHo0eJoQ8CUg-05901_fs_mcNBa2mLU_XujElzhLuyHvadDfTsowQ/exec";
+const PRICE   = 260;                 // سعر الوجبة الوحدة
+let session = null;                  // بيانات الجلسة
+
+function q(id)      { return document.getElementById(id); }
+function show(el)   { el.classList.remove('hidden'); }
+function hide(el)   { el.classList.add('hidden'); }
+function fmtDate(d) {               // yyyy-mm-dd → dd/mm/yyyy
+  if (!d) return "";
+  const dt = new Date(d);
+  return isNaN(dt) ? d : `${dt.getDate().toString().padStart(2,'0')}/${(dt.getMonth()+1).toString().padStart(2,'0')}/${dt.getFullYear()}`;
+}
+
+/* ========================== توصيف الأحداث ========================== */
+window.addEventListener('DOMContentLoaded', () => {
+  q('login-btn').onclick       = onLogin;
+  q('logout-btn').onclick      = onLogout;
+  q('refresh-btn').onclick     = refreshAll;
+  q('print-btn').onclick       = () => printResults();
+  q('admin-print-btn').onclick = () => printAdmin();
+
+  document.querySelectorAll('.tab-btn').forEach(btn =>
+    btn.onclick = () => switchTab(btn.dataset.tab)
+  );
+});
+
+/* ========================== تسجيل الدخول / الخروج ========================== */
+async function onLogin(){
+  const u   = q('username').value.trim(),
+        p   = q('password').value.trim(),
+        msg = q('login-msg'),
+        btn = q('login-btn');
+
+  if(!u || !p){ msg.innerText = '⚠️ أدخل اسم المستخدم وكلمة المرور'; return; }
+
+  msg.innerHTML = '<span class="loading"><span class="spinner"></span> جاري الدخول...</span>';
+  btn.disabled  = true;
+
+  try{
+    const res = await fetch(API_URL, {
+      method : 'POST',
+      body   : new URLSearchParams({action:'login', username:u, password:p})
+    });
+    const j   = await res.json();
+
+    if(!j.success){ msg.innerText = '⚠️ اسم المستخدم أو كلمة المرور غير صحيحة'; btn.disabled=false; return; }
+
+    session = { token:j.token, username:j.username, role:j.role, company:j.company };
+    hide(q('auth')); show(q('app')); show(q('logout-btn'));
+    applyRole(session.role, session.company);
+    await refreshAll();
+
+  }catch(e){
+    msg.innerText = '❌ خطأ في الاتصال'; btn.disabled=false;
+  }
+}
+
+function onLogout(){
+  session = null;
+  show(q('auth')); hide(q('app')); hide(q('logout-btn'));
+  q('username').value = q('password').value = q('login-msg').innerText = '';
+}
+
+/* ========================== الصلاحيات ========================== */
+function applyRole(role, company){
+  const isAdmin = role === 'Admin',
+        isEntry = role === 'DataEntry',
+        isRead  = role === 'ReadOnly';
+
+  // إظهار/إخفاء الأقسام
+  isRead  ? hide(q('meals-tab'))   : show(q('meals-tab'));
+  isRead  ? hide(q('expenses-tab')): show(q('expenses-tab'));
+  isAdmin ? show(q('admin-tab'))   : hide(q('admin-tab'));
+
+  // زر الطباعة للنتائج → مخفي عن ReadOnly
+  const printBtn = q('print-btn');
+  isRead ? hide(printBtn) : show(printBtn);
+
+  // حقل الشركة
+  q('filter-company').value    = isAdmin ? '' : company;
+  q('filter-company').disabled = !isAdmin;
+
+  // التبويب الافتتاحي
+  switchTab(isRead ? 'results-tab' : 'meals-tab');
+}
+
+function switchTab(tabID){
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`[data-tab="${tabID}"]`).classList.add('active');
+  document.querySelectorAll('[id$="-tab"]').forEach(s => hide(s));
+  show(q(tabID));
+}
+
+/* ========================== تحميل البيانات ========================== */
+async function refreshAll(){
+  if(!session) return;
+  await loadResults();
+  if(session.role === 'Admin') await loadAdmin();
+}
+
+async function loadResults(){
+  show(q('results-loading'));
+  try{
+    const res = await fetch(`${API_URL}?sheet=Meals&token=${encodeURIComponent(session.token)}`);
+    const j   = await res.json();
+    const rows= (j.data||[]).slice(1);                      // إزالة الهيدر
+    const month = q('filter-month').value,
+          comp  = (session.role==='Admin') ? q('filter-company').value.trim() : session.company;
+
+    let totalCount=0, totalAmount=0;
+    let html='<thead><tr><th>تاريخ</th><th>شركة</th><th>عدد</th><th>نوع</th><th>المجموع</th></tr></thead><tbody>';
+
+    rows.sort((a,b)=> new Date(b[0]) - new Date(a[0]))
+        .forEach(r=>{
+          const m = r[0] ? new Date(r[0]).toISOString().slice(0,7) : '';
+          if(month && m!==month) return;
+          if(comp && comp!=='الكل' && r[2]!==comp) return;
+          const count = Number(r[1])||0, amount = Number(r[4])||0;
+          totalCount += count; totalAmount += amount;
+          html+=`<tr><td>${fmtDate(r[0])}</td><td>${r[2]}</td><td>${count}</td><td>${r[3]}</td><td>${amount}</td></tr>`;
+        });
+    html+='</tbody>';
+    q('results-table').innerHTML = html;
+    q('card-count').innerText    = `🍽 مجموع: ${totalCount}`;
+    q('card-amount').innerText   = `💰 المبلغ: ${totalAmount} دج`;
+  }finally{ hide(q('results-loading')); }
+}
+
+async function loadAdmin(){
+  // يمكنك لاحقاً استدعاء sheet=Expenses وعمل الصافي
+  const month = q('admin-filter-month').value;
+  q('admin-card-expenses').innerText = '💰 المصاريف: 0 دج';
+  q('admin-card-meals').innerText    = '🍽 الوجبات: 0';
+  q('admin-card-net').innerText      = '📉 الصافي: 0 دج';
+}
+
+/* ========================== الطباعة المفصَّلة ========================== */
+function printResults(){
+  const month = q('filter-month').value,
+        comp  = (session.role==='Admin') ? q('filter-company').value.trim() : session.company,
+        rows  = Array.from(q('results-table').querySelectorAll('tbody tr')),
+        area  = q('printArea');
+
+  let lunch=0, dinner=0, totalCount=0, totalAmount=0, firstDate='', lastDate='';
+
+  rows.forEach(tr=>{
+    const cells = tr.querySelectorAll('td');
+    if(!cells.length) return;
+    const dt   = cells[0].innerText,
+          cnt  = parseInt(cells[2].innerText)||0,
+          type = cells[3].innerText.trim(),
+          amt  = parseInt(cells[4].innerText)||0;
+    if(type==='غذاء') lunch += cnt;
+    if(type==='عشاء') dinner += cnt;
+    totalCount += cnt; totalAmount += amt;
+    if(!firstDate || dt < firstDate) firstDate = dt;
+    if(!lastDate  || dt > lastDate)  lastDate  = dt;
+  });
+
+  const unitPrice = PRICE;
+  const html = `
+    <div style="text-align:center;margin-bottom:10px;font-weight:700;font-size:1.3rem">تقرير الوجبات</div>
+    <div style="text-align:center;margin-bottom:6px">الشهر: ${month||'الكل'} | الشركة: ${comp||'الكل'}</div>
+    <div style="text-align:center;margin-bottom:6px">الفترة: من ${firstDate} إلى ${lastDate}</div>
+    <table>
+      <thead><tr><th>البند</th><th>العدد</th><th>سعر الوحدة</th><th>المجموع</th></tr></thead>
+      <tbody>
+        <tr><td>غذاء</td><td>${lunch}</td><td>${unitPrice} دج</td><td>${lunch*unitPrice} دج</td></tr>
+        <tr><td>عشاء</td><td>${dinner}</td><td>${unitPrice} دج</td><td>${dinner*unitPrice} دج</td></tr>
+        <tr style="font-weight:bold"><td>الإجمالي</td><td>${totalCount}</td><td>-</td><td>${totalAmount} دج</td></tr>
+      </tbody>
+    </table>
+  `;
+  area.innerHTML = html;
+  show(area);
+  window.print();
+  hide(area);
+}
+
+function printAdmin(){
+  const area = q('printArea');
+  area.innerHTML = `<div style="text-align:center;font-weight:700">تقرير الإدمن – غير مكتمل البيانات</div>`;
+  show(area);
+  window.print();
+  hide(area);
+}
+</script>
+</body>
+</html>
